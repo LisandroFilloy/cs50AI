@@ -57,12 +57,13 @@ def result(board, action):
             [EMPTY, EMPTY, EMPTY],
             [EMPTY, EMPTY, EMPTY]]
 
+    #Deep copy of the board.
     for i in range(3):
         for j in range(3):
             if(action != (i,j)):
                 newBoard[i][j] = board[i][j]
             else:
-                newBoard[i][j] = action
+                newBoard[i][j] = player(board)
 
     return newBoard
 
@@ -84,7 +85,7 @@ def winner(board):
 
     #Diagonal winner
     for Player in [X,O]:
-        if board[0,0] == Player and board[1][1] == Player and board[2][2] == Player:
+        if board[0][0] == Player and board[1][1] == Player and board[2][2] == Player:
             return Player
         if board[2][0] == Player and board[1][1] == Player and board[0][2] == Player:
             return Player
@@ -115,7 +116,7 @@ def utility(board):
     #it only accepts terminal boards
     if winner(board) == X:
         return 1
-    elif winner(board) == 0:
+    elif winner(board) == O:
         return -1
     else:
         return 0
@@ -127,11 +128,25 @@ def minimax(board):
     """
     Player = player(board)
 
+    if terminal(board):
+        return None
+
     if Player == X:
-        return maxPlay(board)
+        moves = []
+        for action in actions(board):
+            moves.append((action, minPlay(result(board,action))))
+
+        moves.sort(key = lambda x: x[1])
+        return moves[-1][0]
 
     if Player == O:
-        return minPlay(board)
+        moves = []
+        for action in actions(board):
+            moves.append((action, maxPlay(result(board,action))))
+
+        moves.sort(key = lambda x: x[1])
+
+        return moves[0][0]
 
 
 def maxPlay(board):
