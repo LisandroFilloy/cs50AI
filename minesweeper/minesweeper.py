@@ -1,6 +1,7 @@
 import itertools
 import random
 
+directions = [(-1,-1),(-1,0),(-1,1),(0,-1),(0,1),(1,-1),(1,0),(1,1)]
 
 class Minesweeper():
     """
@@ -105,27 +106,38 @@ class Sentence():
         """
         Returns the set of all cells in self.cells known to be mines.
         """
-        raise NotImplementedError
+        if len(self.cells) == self.count:
+            knownMines = self.cells.copy()
+            return knownMines
+        else:
+            return None
 
     def known_safes(self):
         """
         Returns the set of all cells in self.cells known to be safe.
         """
-        raise NotImplementedError
+        if self.count == 0:
+            safeMines = self.cells.copy()
+            return safeMines
+        else:
+            return None
 
     def mark_mine(self, cell):
         """
         Updates internal knowledge representation given the fact that
         a cell is known to be a mine.
         """
-        raise NotImplementedError
+        if cell in self.cells:
+            self.cells.remove(cell)
+            self.count -= 1
 
     def mark_safe(self, cell):
         """
         Updates internal knowledge representation given the fact that
         a cell is known to be safe.
         """
-        raise NotImplementedError
+        if cell in self.cells:
+            self.cells.remove(cell)
 
 
 class MinesweeperAI():
@@ -182,7 +194,63 @@ class MinesweeperAI():
             5) add any new sentences to the AI's knowledge base
                if they can be inferred from existing knowledge
         """
-        raise NotImplementedError
+        #Cell added to moves
+        self.moves_made.add(cell)
+        #Cell added to safes
+        self.mark_safe(cell)
+
+        #Added new sentence
+        near_active_cells = set()
+        for direction in directions:
+            temp_cell = (cell[0] + direction[0],cell[1] + direction[1])
+            #is it a legal cell? 
+            if 0 <= temp_cell[0] <= self.height - 1 and 0 <= temp_cell[1] <= self.width - 1:
+                #Not involving already played cells
+                if temp_cell not in self.moves_made:
+                    near_active_cells.add(temp_cell)
+
+        new_sentence = Sentence(near_active_cells, count)
+        if near_active_cells and new_sentence not in self.knowledge:
+            self.knowledge.append(new_sentence)
+
+
+        #After adding new safe cell, we detect if new mines or safes were infered. 
+        for sentence in self.knowledge:
+            if sentence.known_safes():
+                for safe in sentence.known_safes():
+                    self.safes.add(safe)
+            if sentence.known_mines():
+                for mine in sentence.known_mines():
+                    self.mines.add(mine)
+
+        #We try to infere new sentences by using the difference between sets rule.
+        append_later_sentences = []
+
+        for old_sentence in self.knowledge:
+            if old_sentence != new_sentence:
+
+                if new_sentence.cells.issubset(old_sentence.cells):
+                    new_infered_sentence = Sentence(old_sentence.cells - new_sentence.cells, old_sentence.count - new_sentence.count)
+                    append_later_sentences.append(new_infered_sentence)
+                    
+
+                if old_sentence.cells.issubset(new_sentence.cells):
+                    new_infered_sentence = Sentence(new_sentence.cells - old_sentence.cells, new_sentence.count - old_sentence.count)
+                    append_later_sentences.append(new_infered_sentence)
+
+        #We append the new sentences later to avoid errors of using that new sentences to generate others and looping infinitely.
+        for sentence in append_later_sentences:
+            if sentence not in self.knowledge:
+                self.knowledge.append(sentence)
+            
+
+        for sentence in self.knowledge:
+            if sentence.known_safes():
+                for safe in sentence.known_safes():
+                    self.safes.add(safe)
+            if sentence.known_mines():
+                for mine in sentence.known_mines():
+                    self.mines.add(mine)
 
     def make_safe_move(self):
         """
@@ -193,7 +261,12 @@ class MinesweeperAI():
         This function may use the knowledge in self.mines, self.safes
         and self.moves_made, but should not modify any of those values.
         """
-        raise NotImplementedError
+        for possible_next_move in self.safes:
+            if possible_next_move not in self.moves_made:
+                return possible_next_move
+
+        return None
+
 
     def make_random_move(self):
         """
@@ -202,4 +275,25 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
-        raise NotImplementedError
+        for i in range(self.width):
+            for j in range(self.height):
+                possible_move = (i,j)
+                if possible_move not in self.mines and possible_move not in self.moves_made:
+                    return possible_move
+
+        return None
+
+
+
+
+#BUG: doesn't detect all safe moves/cells after doing rigth the inferation.
+#[[11xxxxxxxx]
+# [xxxxxxxxx]
+# [xxxxxxxxx]
+# [xxxxxxxxx]
+# [xxxxxxxxx]
+# [xxxxxxxxx]
+# [xxxxxxxxx]
+# [xxxxxxxxx]]
+
+#infers that (0,2) and (1,2) are safe cells but doesn't use them.
