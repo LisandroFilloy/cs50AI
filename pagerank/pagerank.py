@@ -1,7 +1,9 @@
 import os
-import random
+import pdb
 import re
 import sys
+
+import numpy as np
 
 DAMPING = 0.85
 SAMPLES = 10000
@@ -57,7 +59,15 @@ def transition_model(corpus, page, damping_factor):
     linked to by `page`. With probability `1 - damping_factor`, choose
     a link at random chosen from all pages in the corpus.
     """
-    raise NotImplementedError
+    dist = dict()
+    for next_page in corpus.keys():
+        if next_page in corpus[page]:
+            dist[next_page] = damping_factor / len(corpus[page]) + (1 - damping_factor) / len(corpus)
+
+        else:
+            dist[next_page] = (1 - damping_factor) / len(corpus)
+
+    return dist
 
 
 def sample_pagerank(corpus, damping_factor, n):
@@ -69,7 +79,45 @@ def sample_pagerank(corpus, damping_factor, n):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    raise NotImplementedError
+
+    sample_corpus = {_page: (_pages if len(corpus[_page]) > 0 else corpus.keys()) for _page, _pages in corpus.items()}
+
+    amounts = dict()
+
+    for page in sample_corpus.keys():
+        amounts[page] = 0
+
+    actual_page = np.random.choice(list(sample_corpus.keys()))
+
+    for i in range(n):
+        amounts[actual_page] += 1
+        actual_page = np.random.choice(list(sample_corpus.keys()), p=list(transition_model(sample_corpus, actual_page, damping_factor).values()))
+
+    dist = {_page: (_amt / n) for _page, _amt in amounts.items()}
+    return dist
+
+# Function to compute new pageRank on iterative approach
+
+
+def new_pr_iter(corpus, dist_dict, page, damping_factor):
+    new_pr = (1 - damping_factor) / len(corpus)
+    for link in corpus[page]:
+        new_pr += damping_factor * dist_dict[link] / len(corpus[link])
+
+    return new_pr
+
+# Function that detects if iterative approach is not changing pageRanks (in more than 0.001)
+
+
+def no_change(corpus, dist_dict, damping_factor):
+    for _page in corpus:
+
+        new_pr = new_pr_iter(corpus, dist_dict, _page, damping_factor)
+
+        if abs(new_pr - dist_dict[_page]) >= 0.001:
+            return False
+
+    return True
 
 
 def iterate_pagerank(corpus, damping_factor):
@@ -81,7 +129,18 @@ def iterate_pagerank(corpus, damping_factor):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    raise NotImplementedError
+    iter_corpus = {_page: (_pages if len(corpus[_page]) > 0 else corpus.keys()) for _page, _pages in corpus.items()}
+
+    dist = {_page: 1 / len(iter_corpus) for _page in iter_corpus}
+
+    actual_page = np.random.choice(list(corpus.keys()))
+
+    while not no_change(iter_corpus, dist, damping_factor):
+        new_pr = new_pr_iter(iter_corpus, dist, actual_page, damping_factor)
+        dist[actual_page] = new_pr
+        actual_page = np.random.choice(list(iter_corpus.keys()),
+                                       p=list(transition_model(iter_corpus, actual_page, damping_factor).values()))
+    return dist
 
 
 if __name__ == "__main__":
