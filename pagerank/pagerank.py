@@ -101,8 +101,9 @@ def sample_pagerank(corpus, damping_factor, n):
 
 def new_pr_iter(corpus, dist_dict, page, damping_factor):
     new_pr = (1 - damping_factor) / len(corpus)
-    for link in corpus[page]:
-        new_pr += damping_factor * dist_dict[link] / len(corpus[link])
+    for loop_page in corpus.keys():
+        if page in corpus[loop_page]:
+            new_pr += damping_factor * dist_dict[loop_page] / len(corpus[loop_page])
 
     return new_pr
 
@@ -133,13 +134,14 @@ def iterate_pagerank(corpus, damping_factor):
 
     dist = {_page: 1 / len(iter_corpus) for _page in iter_corpus}
 
-    actual_page = np.random.choice(list(corpus.keys()))
-
     while not no_change(iter_corpus, dist, damping_factor):
-        new_pr = new_pr_iter(iter_corpus, dist, actual_page, damping_factor)
-        dist[actual_page] = new_pr
-        actual_page = np.random.choice(list(iter_corpus.keys()),
-                                       p=list(transition_model(iter_corpus, actual_page, damping_factor).values()))
+        new_dist = dict()
+        for page in iter_corpus:
+            new_pr = new_pr_iter(iter_corpus, dist, page, damping_factor)
+            new_dist[page] = new_pr
+
+        dist = new_dist.copy()
+
     return dist
 
 
